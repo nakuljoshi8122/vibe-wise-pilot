@@ -1,9 +1,5 @@
-// Spotify Web API integration with proper OAuth 2.0 flow
-export interface SpotifyConfig {
-  clientId: string;
-  redirectUri: string;
-  scopes: string[];
-}
+// Spotify Web API integration using Replit's managed connection
+import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 
 export interface SpotifyTrack {
   id: string;
@@ -28,247 +24,132 @@ export interface SpotifyUser {
   product: 'free' | 'premium';
 }
 
-export interface SpotifyTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  refresh_token?: string;
-  scope: string;
+interface MoodConfig {
+  valence: number;
+  energy: number;
+  genres: string[];
+  danceability?: number;
+  acousticness?: number;
+  instrumentalness?: number;
+}
+
+let connectionSettings: any;
+
+async function getAccessToken() {
+  if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
+    return connectionSettings.settings.access_token;
+  }
+  
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY 
+    ? 'repl ' + process.env.REPL_IDENTITY 
+    : process.env.WEB_REPL_RENEWAL 
+    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
+    : null;
+
+  if (!xReplitToken) {
+    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+  }
+
+  connectionSettings = await fetch(
+    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=spotify',
+    {
+      headers: {
+        'Accept': 'application/json',
+        'X_REPLIT_TOKEN': xReplitToken
+      }
+    }
+  ).then(res => res.json()).then(data => data.items?.[0]);
+  
+  const refreshToken = connectionSettings?.settings?.oauth?.credentials?.refresh_token;
+  const accessToken = connectionSettings?.settings?.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
+  const clientId = connectionSettings?.settings?.oauth?.credentials?.client_id;
+  const expiresIn = connectionSettings.settings?.oauth?.credentials?.expires_in;
+  
+  if (!connectionSettings || (!accessToken || !clientId || !refreshToken)) {
+    throw new Error('Spotify not connected');
+  }
+  
+  return {accessToken, clientId, refreshToken, expiresIn};
+}
+
+// WARNING: Never cache this client.
+// Access tokens expire, so a new client must be created each time.
+// Always call this function again to get a fresh client.
+export async function getUncachableSpotifyClient() {
+  const {accessToken, clientId, refreshToken, expiresIn} = await getAccessToken();
+
+  const spotify = SpotifyApi.withAccessToken(clientId, {
+    access_token: accessToken,
+    token_type: "Bearer",
+    expires_in: expiresIn || 3600,
+    refresh_token: refreshToken,
+  });
+
+  return spotify;
 }
 
 export class SpotifyService {
-  private config: SpotifyConfig;
-  private accessToken: string | null = null;
-  private refreshToken: string | null = null;
-  private tokenExpiry: number | null = null;
+  private client: any = null;
 
-  constructor() {
-    this.config = {
-      clientId: import.meta.env.VITE_SPOTIFY_CLIENT_ID || '1234567890abcdef1234567890abcdef',
-      redirectUri: `${window.location.origin}${window.location.pathname}`,
-      scopes: [
-        'user-library-read',
-        'user-read-email',
-        'streaming',
-        'user-read-private',
-        'user-read-playback-state',
-        'user-modify-playback-state'
-      ]
-    };
-
-    // Load tokens from localStorage on initialization
-    this.loadTokensFromStorage();
-  }
-
-  private loadTokensFromStorage() {
-    this.accessToken = localStorage.getItem('spotify_access_token');
-    this.refreshToken = localStorage.getItem('spotify_refresh_token');
-    const expiry = localStorage.getItem('spotify_token_expiry');
-    this.tokenExpiry = expiry ? parseInt(expiry) : null;
-  }
-
-  private saveTokensToStorage(tokenData: SpotifyTokenResponse) {
-    this.accessToken = tokenData.access_token;
-    this.tokenExpiry = Date.now() + (tokenData.expires_in * 1000);
-    
-    localStorage.setItem('spotify_access_token', tokenData.access_token);
-    localStorage.setItem('spotify_token_expiry', this.tokenExpiry.toString());
-    
-    if (tokenData.refresh_token) {
-      this.refreshToken = tokenData.refresh_token;
-      localStorage.setItem('spotify_refresh_token', tokenData.refresh_token);
+  async getClient() {
+    try {
+      this.client = await getUncachableSpotifyClient();
+      return this.client;
+    } catch (error) {
+      console.error('Failed to get Spotify client:', error);
+      throw error;
     }
-  }
-
-  generateAuthUrl(): string {
-    const state = Math.random().toString(36).substring(7);
-    localStorage.setItem('spotify_auth_state', state);
-
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: this.config.clientId,
-      scope: this.config.scopes.join(' '),
-      redirect_uri: this.config.redirectUri,
-      state: state,
-      show_dialog: 'true'
-    });
-
-    return `https://accounts.spotify.com/authorize?${params.toString()}`;
   }
 
   async handleAuthCallback(): Promise<boolean> {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
-    const error = urlParams.get('error');
-
-    if (error) {
-      console.error('Spotify auth error:', error);
-      return false;
-    }
-
-    if (!code || !state) {
-      return false;
-    }
-
-    const storedState = localStorage.getItem('spotify_auth_state');
-    if (state !== storedState) {
-      console.error('State mismatch in Spotify auth');
-      return false;
-    }
-
-    try {
-      const tokenData = await this.exchangeCodeForToken(code);
-      this.saveTokensToStorage(tokenData);
-      
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      localStorage.removeItem('spotify_auth_state');
-      
-      return true;
-    } catch (error) {
-      console.error('Error exchanging code for token:', error);
-      return false;
-    }
-  }
-
-  private async exchangeCodeForToken(code: string): Promise<SpotifyTokenResponse> {
-    const response = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: this.config.redirectUri,
-        client_id: this.config.clientId,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Token exchange failed: ${response.status}`);
-    }
-
-    return response.json();
-  }
-
-  private async refreshAccessToken(): Promise<boolean> {
-    if (!this.refreshToken) {
-      return false;
-    }
-
-    try {
-      const response = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: this.refreshToken,
-          client_id: this.config.clientId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Token refresh failed: ${response.status}`);
-      }
-
-      const tokenData = await response.json();
-      this.saveTokensToStorage(tokenData);
-      return true;
-    } catch (error) {
-      console.error('Error refreshing token:', error);
-      this.logout();
-      return false;
-    }
-  }
-
-  private isTokenExpired(): boolean {
-    if (!this.tokenExpiry) return true;
-    return Date.now() >= this.tokenExpiry - 60000; // Refresh 1 minute before expiry
-  }
-
-  async getValidAccessToken(): Promise<string | null> {
-    if (!this.accessToken) return null;
-
-    if (this.isTokenExpired()) {
-      const refreshed = await this.refreshAccessToken();
-      if (!refreshed) return null;
-    }
-
-    return this.accessToken;
+    // Not needed with Replit integration - authentication is handled automatically
+    return true;
   }
 
   isAuthenticated(): boolean {
-    return !!this.accessToken && !this.isTokenExpired();
+    // Check if we can get a valid client
+    try {
+      return connectionSettings?.settings?.access_token != null;
+    } catch {
+      return false;
+    }
   }
 
   logout() {
-    this.accessToken = null;
-    this.refreshToken = null;
-    this.tokenExpiry = null;
-    localStorage.removeItem('spotify_access_token');
-    localStorage.removeItem('spotify_refresh_token');
-    localStorage.removeItem('spotify_token_expiry');
-    localStorage.removeItem('spotify_auth_state');
+    // Logout is handled by Replit integration
+    this.client = null;
+    connectionSettings = null;
   }
 
-  private async makeRequest(endpoint: string): Promise<any> {
-    const token = await this.getValidAccessToken();
-    if (!token) {
-      throw new Error('No valid access token available');
-    }
-
-    const response = await fetch(`https://api.spotify.com/v1${endpoint}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.status === 401) {
-      // Try to refresh token once more
-      const refreshed = await this.refreshAccessToken();
-      if (refreshed) {
-        const newToken = await this.getValidAccessToken();
-        const retryResponse = await fetch(`https://api.spotify.com/v1${endpoint}`, {
-          headers: {
-            'Authorization': `Bearer ${newToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!retryResponse.ok) {
-          throw new Error(`Spotify API error: ${retryResponse.status}`);
-        }
-        
-        return retryResponse.json();
-      } else {
-        throw new Error('Authentication failed');
-      }
-    }
-
-    if (!response.ok) {
-      throw new Error(`Spotify API error: ${response.status}`);
-    }
-
-    return response.json();
+  generateAuthUrl(): string {
+    // Not needed with Replit integration
+    return '';
   }
 
   async getUserProfile(): Promise<SpotifyUser> {
-    return this.makeRequest('/me');
+    const client = await this.getClient();
+    const profile = await client.currentUser.profile();
+    return {
+      id: profile.id,
+      display_name: profile.display_name || '',
+      email: profile.email || '',
+      images: profile.images || [],
+      product: profile.product === 'premium' ? 'premium' : 'free'
+    };
   }
 
   async getUserLikedSongs(limit: number = 20): Promise<SpotifyTrack[]> {
-    const response = await this.makeRequest(`/me/tracks?limit=${limit}`);
+    const client = await this.getClient();
+    const response = await client.currentUser.tracks.savedTracks(limit);
     return response.items.map((item: any) => item.track);
   }
 
   async getRecommendations(mood: string, limit: number = 20): Promise<SpotifyTrack[]> {
+    const client = await this.getClient();
+    
     // Map moods to Spotify audio features and genres
-    const moodConfig = {
+    const moodConfig: Record<string, MoodConfig> = {
       'Great': { 
         valence: 0.8, 
         energy: 0.7, 
@@ -313,32 +194,32 @@ export class SpotifyService {
       }
     };
 
-    const config = moodConfig[mood as keyof typeof moodConfig] || moodConfig['Calm'];
+    const config = moodConfig[mood] || moodConfig['Calm'];
     const selectedGenres = config.genres.slice(0, 3); // Max 3 seed genres
     
-    const params = new URLSearchParams({
-      limit: limit.toString(),
-      seed_genres: selectedGenres.join(','),
-      target_valence: config.valence.toString(),
-      target_energy: config.energy.toString(),
-    });
+    const params = {
+      limit: limit,
+      seed_genres: selectedGenres,
+      target_valence: config.valence,
+      target_energy: config.energy,
+    } as any;
 
     if (config.danceability) {
-      params.append('target_danceability', config.danceability.toString());
+      params.target_danceability = config.danceability;
     }
     if (config.acousticness) {
-      params.append('target_acousticness', config.acousticness.toString());
+      params.target_acousticness = config.acousticness;
     }
     if (config.instrumentalness) {
-      params.append('target_instrumentalness', config.instrumentalness.toString());
+      params.target_instrumentalness = config.instrumentalness;
     }
 
-    const response = await this.makeRequest(`/recommendations?${params.toString()}`);
+    const response = await client.recommendations.get(params);
     return response.tracks;
   }
 
   // Initialize Spotify Web Playback SDK
-  initializeWebPlayback(onReady: (deviceId: string) => void): Promise<any> {
+  async initializeWebPlayback(onReady: (deviceId: string) => void): Promise<any> {
     return new Promise((resolve, reject) => {
       if (!(window as any).Spotify) {
         // Load Spotify Web Playback SDK
@@ -357,16 +238,13 @@ export class SpotifyService {
   }
 
   private async createPlayer(onReady: (deviceId: string) => void): Promise<any> {
-    const token = await this.getValidAccessToken();
-    if (!token) {
-      throw new Error('No access token for playback');
-    }
-
+    const {accessToken} = await getAccessToken();
+    
     const player = new (window as any).Spotify.Player({
       name: 'Sorted MoodTunes Player',
       getOAuthToken: (cb: (token: string) => void) => {
-        this.getValidAccessToken().then(token => {
-          if (token) cb(token);
+        getAccessToken().then(({accessToken}) => {
+          if (accessToken) cb(accessToken);
         });
       },
       volume: 0.5
@@ -389,18 +267,10 @@ export class SpotifyService {
   }
 
   async playTrack(trackUri: string, deviceId?: string): Promise<void> {
+    const client = await this.getClient();
     const endpoint = deviceId ? `/me/player/play?device_id=${deviceId}` : '/me/player/play';
     
-    await fetch(`https://api.spotify.com/v1${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${await this.getValidAccessToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        uris: [trackUri]
-      })
-    });
+    await client.player.startResumePlayback(deviceId, undefined, [trackUri]);
   }
 }
 

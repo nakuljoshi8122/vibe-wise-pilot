@@ -22,18 +22,7 @@ export const SpotifyLogin = ({ onAuthChange }: SpotifyLoginProps) => {
       setError(null);
 
       try {
-        // Check if we're returning from Spotify auth
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('code')) {
-          const success = await spotifyService.handleAuthCallback();
-          if (!success) {
-            setError('Authentication failed. Please try again.');
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        // Check if user is authenticated
+        // Check if user is authenticated with Replit integration
         const authenticated = spotifyService.isAuthenticated();
         setIsAuthenticated(authenticated);
         onAuthChange(authenticated);
@@ -45,29 +34,25 @@ export const SpotifyLogin = ({ onAuthChange }: SpotifyLoginProps) => {
             onAuthChange(true, userProfile);
           } catch (error) {
             console.error('Failed to fetch user profile:', error);
-            // Token might be expired or invalid
-            spotifyService.logout();
+            // Connection might not be set up properly
             setIsAuthenticated(false);
             onAuthChange(false);
-            setError('Session expired. Please log in again.');
+            setError('Please set up the Spotify connection in the Replit panel.');
           }
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        setError('Authentication error occurred.');
+        setError('Spotify connection not available. Please check your Replit integration.');
       } finally {
         setIsLoading(false);
       }
     };
 
     checkAuth();
-  }, [onAuthChange]);
+  }, [onAuthChange]); // Now safe to use since parent uses useCallback
 
   const handleLogin = () => {
-    setIsLoading(true);
-    setError(null);
-    const authUrl = spotifyService.generateAuthUrl();
-    window.location.href = authUrl;
+    setError('Spotify authentication is managed by Replit. Please connect Spotify in your Replit integrations panel.');
   };
 
   const handleLogout = () => {

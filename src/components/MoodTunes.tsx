@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,7 @@ export const MoodTunes = () => {
     }
   }, [isSpotifyConnected, user]);
 
-  const handleSpotifyAuth = (isAuthenticated: boolean, userData?: SpotifyUser) => {
+  const handleSpotifyAuth = useCallback((isAuthenticated: boolean, userData?: SpotifyUser) => {
     setIsSpotifyConnected(isAuthenticated);
     setUser(userData || null);
     setError(null);
@@ -43,7 +43,7 @@ export const MoodTunes = () => {
       setTracks([]);
       setSelectedMood("");
     }
-  };
+  }, []);
 
   const loadUserLikedSongs = async () => {
     if (!isSpotifyConnected) return;

@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 5000,             // ✅ Replit-friendly port
-    allowedHosts: "all",    // ✅ latest Vite way to allow any host
+    allowedHosts: true,    // ✅ latest Vite way to allow any host
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

@@ -4,6 +4,7 @@ import { ThoughtSorter } from "@/components/ThoughtSorter";
 import { MoodTunes } from "@/components/MoodTunes";
 import { AIPersona } from "@/components/AIPersona";
 import { FeatureCard } from "@/components/FeatureCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,10 +111,11 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
+          <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
               ← Back to Home
             </EnhancedButton>
+            <ThemeToggle />
           </div>
           <VibeCheck onComplete={handleVibeCheckComplete} />
         </div>
@@ -125,10 +127,11 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
+          <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
               ← Back to Home
             </EnhancedButton>
+            <ThemeToggle />
           </div>
           <ThoughtSorter />
         </div>
@@ -140,10 +143,11 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
+          <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
               ← Back to Home
             </EnhancedButton>
+            <ThemeToggle />
           </div>
           <MoodTunes />
         </div>
@@ -155,10 +159,11 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-4xl mx-auto space-y-6">
-          <div className="mb-6">
+          <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
               ← Back to Home
             </EnhancedButton>
+            <ThemeToggle />
           </div>
           <AIPersona personaData={personaData} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -184,6 +189,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header with Theme Toggle */}
+      <div className="absolute top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+      
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-wellness-calm/10 to-accent/5">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent"></div>

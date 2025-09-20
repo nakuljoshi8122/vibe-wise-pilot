@@ -28,6 +28,31 @@ const questions = [
     question: "What's your main focus area today?",
     type: "focus" as const,
     options: ["Academic Work", "Social Life", "Self Care", "Career Planning", "Health & Fitness"]
+  },
+  {
+    question: "How well did you sleep last night?",
+    type: "scale" as const,
+    options: ["Terrible", "Poor", "Okay", "Good", "Excellent"]
+  },
+  {
+    question: "What's your stress level right now?",
+    type: "scale" as const,
+    options: ["Very Low", "Low", "Moderate", "High", "Very High"]
+  },
+  {
+    question: "How connected do you feel to others today?",
+    type: "scale" as const,
+    options: ["Very Isolated", "Lonely", "Neutral", "Connected", "Very Connected"]
+  },
+  {
+    question: "What type of support do you need most right now?",
+    type: "support" as const,
+    options: ["Emotional Support", "Academic Help", "Social Connection", "Stress Relief", "Motivation Boost", "Time Management"]
+  },
+  {
+    question: "How confident do you feel about handling today's challenges?",
+    type: "scale" as const,
+    options: ["Not Confident", "Slightly Confident", "Moderately Confident", "Very Confident", "Extremely Confident"]
   }
 ];
 
@@ -113,6 +138,33 @@ export const VibeCheck = ({ onComplete }: { onComplete: (data: any) => void }) =
                   "Self Care": "🧘",
                   "Career Planning": "🎯",
                   "Health & Fitness": "💪"
+                };
+                return (
+                  <EnhancedButton
+                    key={option}
+                    variant="outline"
+                    size="xl"
+                    onClick={() => handleAnswer(option)}
+                    className="h-16 justify-start space-x-3"
+                  >
+                    <span className="text-2xl">{icons[option as keyof typeof icons]}</span>
+                    <span>{option}</span>
+                  </EnhancedButton>
+                );
+              })}
+            </div>
+          )}
+
+          {questions[currentQuestion].type === "support" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {questions[currentQuestion].options?.map((option) => {
+                const icons = {
+                  "Emotional Support": "❤️",
+                  "Academic Help": "📖",
+                  "Social Connection": "🤝",
+                  "Stress Relief": "🧘‍♀️",
+                  "Motivation Boost": "⚡",
+                  "Time Management": "⏰"
                 };
                 return (
                   <EnhancedButton

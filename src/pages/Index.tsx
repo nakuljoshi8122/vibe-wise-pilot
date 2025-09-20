@@ -20,7 +20,7 @@ import {
   Star
 } from "lucide-react";
 
-type AppView = "home" | "vibe-check" | "thought-sorter" | "mood-tunes" | "persona";
+type AppView = "home" | "vibe-check" | "thought-sorter" | "mood-tunes" | "persona" | "zen";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<AppView>("home");
@@ -84,7 +84,7 @@ const Index = () => {
       icon: <Smartphone className="w-8 h-8 text-wellness-calm" />,
       title: "Zen Mode",
       description: "Mindful tech use tools to help you build healthier digital habits",
-      status: "coming-soon" as const,
+      status: "available" as const,
       features: [
         "App usage tracking",
         "Mindful breaks reminders",
@@ -102,6 +102,8 @@ const Index = () => {
         return () => setCurrentView("thought-sorter");
       case "MoodTunes":
         return () => setCurrentView("mood-tunes");
+      case "Zen Mode":
+        return () => setCurrentView("zen");
       default:
         return undefined;
     }
@@ -150,6 +152,91 @@ const Index = () => {
             <ThemeToggle />
           </div>
           <MoodTunes />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === "zen") {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6 flex justify-between items-center">
+            <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
+              ← Back to Home
+            </EnhancedButton>
+            <ThemeToggle />
+          </div>
+          <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+            <Card className="bg-gradient-to-br from-card to-wellness-calm/20">
+              <CardHeader className="text-center">
+                <div className="flex items-center justify-center mb-4">
+                  <span className="text-4xl mr-3">🧘‍♀️</span>
+                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-wellness-calm bg-clip-text text-transparent">
+                    Zen Mode
+                  </CardTitle>
+                </div>
+                <p className="text-muted-foreground max-w-2xl mx-auto">
+                  Create healthy digital boundaries and practice mindful technology use
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="p-6">
+                    <h3 className="font-semibold text-lg mb-3 flex items-center">
+                      <span className="text-2xl mr-2">📱</span>
+                      Focus Timer
+                    </h3>
+                    <p className="text-muted-foreground mb-4">
+                      Pomodoro-style timer with app blocking during focus sessions
+                    </p>
+                    <EnhancedButton variant="wellness" className="w-full">
+                      Start Focus Session
+                    </EnhancedButton>
+                  </Card>
+                  
+                  <Card className="p-6">
+                    <h3 className="font-semibold text-lg mb-3 flex items-center">
+                      <span className="text-2xl mr-2">🌙</span>
+                      Sleep Mode
+                    </h3>
+                    <p className="text-muted-foreground mb-4">
+                      Wind-down routine with blue light filtering and gentle reminders
+                    </p>
+                    <EnhancedButton variant="calm" className="w-full">
+                      Activate Sleep Mode
+                    </EnhancedButton>
+                  </Card>
+                  
+                  <Card className="p-6">
+                    <h3 className="font-semibold text-lg mb-3 flex items-center">
+                      <span className="text-2xl mr-2">📊</span>
+                      Usage Insights
+                    </h3>
+                    <p className="text-muted-foreground mb-4">
+                      Track your digital habits and get personalized recommendations
+                    </p>
+                    <EnhancedButton variant="outline" className="w-full">
+                      View Analytics
+                    </EnhancedButton>
+                  </Card>
+                  
+                  <Card className="p-6">
+                    <h3 className="font-semibold text-lg mb-3 flex items-center">
+                      <span className="text-2xl mr-2">🎯</span>
+                      Mindful Breaks
+                    </h3>
+                    <p className="text-muted-foreground mb-4">
+                      Guided breathing exercises and micro-meditation sessions
+                    </p>
+                    <EnhancedButton variant="secondary" className="w-full">
+                      Take a Break
+                    </EnhancedButton>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     );

@@ -1,78 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge";
-import { Music, Play, Pause, Heart, Plus, ExternalLink } from "lucide-react";
+import { Music, RefreshCw, Heart, Loader2 } from "lucide-react";
 import { MoodCard } from "./MoodCard";
 import { SpotifyLogin } from "./SpotifyLogin";
-import { spotifyService, SpotifyTrack } from "@/lib/spotify";
-
-interface Track {
-  title: string;
-  artist: string;
-  mood: string;
-  duration: string;
-  isPlaying?: boolean;
-}
-
-const moodMusic = {
-  "Great": [
-    { title: "Good Vibes", artist: "Study Beats", mood: "Uplifting", duration: "3:24" },
-    { title: "Positive Energy", artist: "Lofi Collective", mood: "Energetic", duration: "2:45" },
-  ],
-  "Calm": [
-    { title: "Ocean Waves", artist: "Nature Sounds", mood: "Peaceful", duration: "4:12" },
-    { title: "Meditation Flow", artist: "Zen Masters", mood: "Serene", duration: "5:30" },
-  ],
-  "Stressed": [
-    { title: "Deep Breathing", artist: "Calm Studios", mood: "Relaxing", duration: "6:15" },
-    { title: "Stress Relief", artist: "Ambient Therapy", mood: "Soothing", duration: "4:45" },
-  ],
-  "Tired": [
-    { title: "Gentle Wake Up", artist: "Morning Light", mood: "Refreshing", duration: "3:00" },
-    { title: "Energy Boost", artist: "Revive Music", mood: "Invigorating", duration: "2:30" },
-  ],
-};
+import { SpotifyPlayer } from "./SpotifyPlayer";
+import { spotifyService, SpotifyTrack, SpotifyUser } from "@/lib/spotify";
 
 const moods = [
-  { emoji: "🎵", mood: "Great", description: "Feeling positive and energetic", color: "wellness-energy" },
-  { emoji: "🎶", mood: "Calm", description: "Peaceful and centered", color: "wellness-calm" },
-  { emoji: "🎼", mood: "Stressed", description: "Need to relax and unwind", color: "wellness-stress" },
-  { emoji: "🎧", mood: "Tired", description: "Low energy, need motivation", color: "muted" },
+  { emoji: "😊", mood: "Great", description: "Feeling positive and energetic", color: "wellness-energy" },
+  { emoji: "😌", mood: "Calm", description: "Peaceful and centered", color: "wellness-calm" },
+  { emoji: "😕", mood: "Stressed", description: "Need to relax and unwind", color: "wellness-stress" },
+  { emoji: "😴", mood: "Tired", description: "Low energy, need motivation", color: "muted" },
+  { emoji: "🤔", mood: "Focused", description: "Need concentration music", color: "wellness-focus" },
+  { emoji: "🤯", mood: "Confused", description: "Feeling unclear or unsure", color: "secondary" },
+  { emoji: "😤", mood: "Frustrated", description: "Annoyed or blocked", color: "destructive" },
 ];
 
 export const MoodTunes = () => {
   const [selectedMood, setSelectedMood] = useState<string>("");
-  const [playingTrack, setPlayingTrack] = useState<string>("");
   const [isSpotifyConnected, setIsSpotifyConnected] = useState(false);
-  const [spotifyTracks, setSpotifyTracks] = useState<SpotifyTrack[]>([]);
+  const [user, setUser] = useState<SpotifyUser | null>(null);
+  const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
   const [isLoadingTracks, setIsLoadingTracks] = useState(false);
-  const [userPlaylists] = useState([
-    { name: "My Study Mix", tracks: 15, mood: "Focus" },
-    { name: "Chill Vibes", tracks: 8, mood: "Relax" },
-    { name: "Workout Energy", tracks: 12, mood: "Energetic" },
-  ]);
+  const [error, setError] = useState<string | null>(null);
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
 
-  const handlePlay = (trackTitle: string) => {
-    setPlayingTrack(playingTrack === trackTitle ? "" : trackTitle);
-  };
+  useEffect(() => {
+    // Load user's liked songs when connected
+    if (isSpotifyConnected && user) {
+      loadUserLikedSongs();
+    }
+  }, [isSpotifyConnected, user]);
 
-  const handleSpotifyAuth = (isAuthenticated: boolean) => {
+  const handleSpotifyAuth = (isAuthenticated: boolean, userData?: SpotifyUser) => {
     setIsSpotifyConnected(isAuthenticated);
+    setUser(userData || null);
+    setError(null);
+    
     if (!isAuthenticated) {
-      setSpotifyTracks([]);
+      setTracks([]);
+      setSelectedMood("");
     }
   };
 
-  const loadSpotifyRecommendations = async (mood: string) => {
+  const loadUserLikedSongs = async () => {
     if (!isSpotifyConnected) return;
     
     setIsLoadingTracks(true);
+    setError(null);
+    
     try {
-      const tracks = await spotifyService.getRecommendations(mood);
-      setSpotifyTracks(tracks);
+      const likedSongs = await spotifyService.getUserLikedSongs(20);
+      
+      if (likedSongs.length > 0) {
+        // Show top 4 liked songs
+        setTracks(likedSongs.slice(0, 4));
+      } else {
+        // No liked songs, show mood selector
+        setTracks([]);
+      }
     } catch (error) {
-      console.error('Failed to load Spotify recommendations:', error);
+      console.error('Failed to load liked songs:', error);
+      setError('Failed to load your liked songs. Please try again.');
+    } finally {
+      setIsLoadingTracks(false);
+    }
+  };
+
+  const loadMoodRecommendations = async (mood: string) => {
+    if (!isSpotifyConnected) return;
+    
+    setIsLoadingTracks(true);
+    setError(null);
+    
+    try {
+      const recommendations = await spotifyService.getRecommendations(mood, 20);
+      // Show top 4 recommendations
+      setTracks(recommendations.slice(0, 4));
+    } catch (error) {
+      console.error('Failed to load recommendations:', error);
+      setError('Failed to load recommendations. Please try again.');
     } finally {
       setIsLoadingTracks(false);
     }
@@ -80,12 +89,20 @@ export const MoodTunes = () => {
 
   const handleMoodSelect = (mood: string) => {
     setSelectedMood(mood);
-    if (isSpotifyConnected) {
-      loadSpotifyRecommendations(mood);
+    loadMoodRecommendations(mood);
+  };
+
+  const handleRefresh = () => {
+    if (selectedMood) {
+      loadMoodRecommendations(selectedMood);
+    } else {
+      loadUserLikedSongs();
     }
   };
 
-  const currentTracks = selectedMood ? moodMusic[selectedMood as keyof typeof moodMusic] || [] : [];
+  const handlePlayStateChange = (trackId: string, isPlaying: boolean) => {
+    setPlayingTrackId(isPlaying ? trackId : null);
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
@@ -105,154 +122,156 @@ export const MoodTunes = () => {
           {/* Spotify Integration */}
           <SpotifyLogin onAuthChange={handleSpotifyAuth} />
           
-          {/* Mood Selection */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">How are you feeling?</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {moods.map((mood) => (
-                <MoodCard
-                  key={mood.mood}
-                  {...mood}
-                  onClick={() => handleMoodSelect(mood.mood)}
-                  isSelected={selectedMood === mood.mood}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Spotify Recommendations */}
-          {isSpotifyConnected && selectedMood && (
-            <div className="space-y-4 animate-fade-in">
-              <h3 className="text-lg font-semibold flex items-center">
-                <Music className="w-5 h-5 mr-2 text-green-600" />
-                Spotify Recommendations for {selectedMood} Mood
-                {isLoadingTracks && (
-                  <Badge variant="secondary" className="ml-2">
-                    Loading...
-                  </Badge>
-                )}
-              </h3>
-              
-              {spotifyTracks.length > 0 && (
-                <div className="space-y-3">
-                  {spotifyTracks.slice(0, 5).map((track, index) => (
-                    <Card key={track.id} className="bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-colors border-green-200">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            {track.album.images[0] && (
-                              <img 
-                                src={track.album.images[0].url} 
-                                alt={track.name}
-                                className="w-12 h-12 rounded-md"
-                              />
-                            )}
-                            <div>
-                              <h4 className="font-medium">{track.name}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {track.artists.map(artist => artist.name).join(', ')}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm text-muted-foreground">
-                              {Math.floor(track.duration_ms / 60000)}:{((track.duration_ms % 60000) / 1000).toFixed(0).padStart(2, '0')}
-                            </span>
-                            <EnhancedButton
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open(track.external_urls.spotify, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </EnhancedButton>
-                            <EnhancedButton variant="ghost" size="icon">
-                              <Heart className="w-4 h-4" />
-                            </EnhancedButton>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+          {/* Content based on connection status */}
+          {!isSpotifyConnected ? (
+            <Card className="p-6 text-center bg-muted/20">
+              <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="font-semibold mb-2">Connect Spotify to Get Started</h3>
+              <p className="text-sm text-muted-foreground">
+                Connect your Spotify account to access your liked songs and get personalized recommendations
+              </p>
+            </Card>
+          ) : (
+            <>
+              {/* Show liked songs or mood selector */}
+              {tracks.length === 0 && !isLoadingTracks && !selectedMood && (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold mb-2">No Liked Songs Found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Let's find some music based on your current mood
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-md font-semibold mb-4">How are you feeling?</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                      {moods.map((mood) => (
+                        <MoodCard
+                          key={mood.mood}
+                          {...mood}
+                          onClick={() => handleMoodSelect(mood.mood)}
+                          isSelected={selectedMood === mood.mood}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Recommended Tracks */}
-          {selectedMood && currentTracks.length > 0 && !isSpotifyConnected && (
-            <div className="space-y-4 animate-fade-in">
-              <h3 className="text-lg font-semibold flex items-center">                
-                Default Recommendations for {selectedMood} Mood
-                <Badge variant="secondary" className="ml-2">
-                  {currentTracks.length} tracks
-                </Badge>
-              </h3>
-              <div className="space-y-3">
-                {currentTracks.map((track, index) => (
-                  <Card key={index} className="bg-card/50 hover:bg-card/80 transition-colors">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <EnhancedButton
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handlePlay(track.title)}
-                            className="shrink-0"
-                          >
-                            {playingTrack === track.title ? 
-                              <Pause className="w-4 h-4" /> : 
-                              <Play className="w-4 h-4" />
-                            }
-                          </EnhancedButton>
-                          <div>
-                            <h4 className="font-medium">{track.title}</h4>
-                            <p className="text-sm text-muted-foreground">{track.artist}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline">{track.mood}</Badge>
-                          <span className="text-sm text-muted-foreground">{track.duration}</span>
-                          <EnhancedButton variant="ghost" size="icon">
-                            <Heart className="w-4 h-4" />
-                          </EnhancedButton>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* User Playlists */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Your Playlists</h3>
-              <EnhancedButton variant="outline" size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Playlist
-              </EnhancedButton>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {userPlaylists.map((playlist, index) => (
-                <Card key={index} className="cursor-pointer hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">{playlist.name}</h4>
-                      <Badge variant="secondary">{playlist.mood}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {playlist.tracks} tracks
-                    </p>
-                    <EnhancedButton variant="outline" size="sm" className="w-full">
-                      <Play className="w-4 h-4 mr-2" />
-                      Play Playlist
-                    </EnhancedButton>
-                  </CardContent>
+              {/* Loading State */}
+              {isLoadingTracks && (
+                <Card className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                  <p className="text-muted-foreground">
+                    {selectedMood ? `Finding ${selectedMood.toLowerCase()} music...` : 'Loading your music...'}
+                  </p>
                 </Card>
-              ))}
-            </div>
-          </div>
+              )}
+
+              {/* Error State */}
+              {error && (
+                <Card className="p-4 bg-red-50 border-red-200">
+                  <div className="text-center">
+                    <p className="text-red-600 mb-3">{error}</p>
+                    <EnhancedButton variant="outline" onClick={handleRefresh}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Try Again
+                    </EnhancedButton>
+                  </div>
+                </Card>
+              )}
+
+              {/* Track List */}
+              {tracks.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold flex items-center">
+                        {selectedMood ? (
+                          <>
+                            <span className="text-2xl mr-2">
+                              {moods.find(m => m.mood === selectedMood)?.emoji}
+                            </span>
+                            {selectedMood} Mood Recommendations
+                          </>
+                        ) : (
+                          <>
+                            <Heart className="w-5 h-5 mr-2 text-red-500" />
+                            Your Liked Songs
+                          </>
+                        )}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {user?.product === 'premium' 
+                          ? 'Full tracks available with Premium' 
+                          : '30-second previews available'
+                        }
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {selectedMood && (
+                        <EnhancedButton
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedMood("");
+                            setTracks([]);
+                            loadUserLikedSongs();
+                          }}
+                        >
+                          Back to Liked Songs
+                        </EnhancedButton>
+                      )}
+                      <EnhancedButton
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRefresh}
+                        disabled={isLoadingTracks}
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isLoadingTracks ? 'animate-spin' : ''}`} />
+                      </EnhancedButton>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {tracks.map((track) => (
+                      <SpotifyPlayer
+                        key={track.id}
+                        track={track}
+                        user={user!}
+                        isPlaying={playingTrackId === track.id}
+                        onPlayStateChange={(isPlaying) => handlePlayStateChange(track.id, isPlaying)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Show mood selector if we have liked songs */}
+                  {!selectedMood && tracks.length > 0 && (
+                    <div className="mt-8 space-y-4">
+                      <div className="text-center">
+                        <h4 className="text-md font-semibold mb-2">Want music for a specific mood?</h4>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Get personalized recommendations based on how you're feeling
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                        {moods.map((mood) => (
+                          <MoodCard
+                            key={mood.mood}
+                            {...mood}
+                            onClick={() => handleMoodSelect(mood.mood)}
+                            isSelected={false}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

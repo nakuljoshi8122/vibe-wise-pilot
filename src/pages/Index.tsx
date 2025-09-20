@@ -209,7 +209,7 @@ const Index = () => {
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary via-wellness-focus to-accent bg-clip-text text-transparent leading-tight">
-              MindfulU
+              Sorted
             </h1>
             
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">

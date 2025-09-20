@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnhancedButton } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge";
-import { Music, Play, Pause, Heart, Plus } from "lucide-react";
+import { Music, Play, Pause, Heart, Plus, ExternalLink } from "lucide-react";
 import { MoodCard } from "./MoodCard";
+import { SpotifyLogin } from "./SpotifyLogin";
+import { spotifyService, SpotifyTrack } from "@/lib/spotify";
 
 interface Track {
   title: string;
@@ -42,6 +44,9 @@ const moods = [
 export const MoodTunes = () => {
   const [selectedMood, setSelectedMood] = useState<string>("");
   const [playingTrack, setPlayingTrack] = useState<string>("");
+  const [isSpotifyConnected, setIsSpotifyConnected] = useState(false);
+  const [spotifyTracks, setSpotifyTracks] = useState<SpotifyTrack[]>([]);
+  const [isLoadingTracks, setIsLoadingTracks] = useState(false);
   const [userPlaylists] = useState([
     { name: "My Study Mix", tracks: 15, mood: "Focus" },
     { name: "Chill Vibes", tracks: 8, mood: "Relax" },
@@ -50,6 +55,34 @@ export const MoodTunes = () => {
 
   const handlePlay = (trackTitle: string) => {
     setPlayingTrack(playingTrack === trackTitle ? "" : trackTitle);
+  };
+
+  const handleSpotifyAuth = (isAuthenticated: boolean) => {
+    setIsSpotifyConnected(isAuthenticated);
+    if (!isAuthenticated) {
+      setSpotifyTracks([]);
+    }
+  };
+
+  const loadSpotifyRecommendations = async (mood: string) => {
+    if (!isSpotifyConnected) return;
+    
+    setIsLoadingTracks(true);
+    try {
+      const tracks = await spotifyService.getRecommendations(mood);
+      setSpotifyTracks(tracks);
+    } catch (error) {
+      console.error('Failed to load Spotify recommendations:', error);
+    } finally {
+      setIsLoadingTracks(false);
+    }
+  };
+
+  const handleMoodSelect = (mood: string) => {
+    setSelectedMood(mood);
+    if (isSpotifyConnected) {
+      loadSpotifyRecommendations(mood);
+    }
   };
 
   const currentTracks = selectedMood ? moodMusic[selectedMood as keyof typeof moodMusic] || [] : [];
@@ -69,6 +102,9 @@ export const MoodTunes = () => {
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Spotify Integration */}
+          <SpotifyLogin onAuthChange={handleSpotifyAuth} />
+          
           {/* Mood Selection */}
           <div>
             <h3 className="text-lg font-semibold mb-4">How are you feeling?</h3>
@@ -77,18 +113,76 @@ export const MoodTunes = () => {
                 <MoodCard
                   key={mood.mood}
                   {...mood}
-                  onClick={() => setSelectedMood(mood.mood)}
+                  onClick={() => handleMoodSelect(mood.mood)}
                   isSelected={selectedMood === mood.mood}
                 />
               ))}
             </div>
           </div>
 
-          {/* Recommended Tracks */}
-          {selectedMood && currentTracks.length > 0 && (
+          {/* Spotify Recommendations */}
+          {isSpotifyConnected && selectedMood && (
             <div className="space-y-4 animate-fade-in">
               <h3 className="text-lg font-semibold flex items-center">
-                AI Recommendations for {selectedMood} Mood
+                <Music className="w-5 h-5 mr-2 text-green-600" />
+                Spotify Recommendations for {selectedMood} Mood
+                {isLoadingTracks && (
+                  <Badge variant="secondary" className="ml-2">
+                    Loading...
+                  </Badge>
+                )}
+              </h3>
+              
+              {spotifyTracks.length > 0 && (
+                <div className="space-y-3">
+                  {spotifyTracks.slice(0, 5).map((track, index) => (
+                    <Card key={track.id} className="bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-colors border-green-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            {track.album.images[0] && (
+                              <img 
+                                src={track.album.images[0].url} 
+                                alt={track.name}
+                                className="w-12 h-12 rounded-md"
+                              />
+                            )}
+                            <div>
+                              <h4 className="font-medium">{track.name}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                {track.artists.map(artist => artist.name).join(', ')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-muted-foreground">
+                              {Math.floor(track.duration_ms / 60000)}:{((track.duration_ms % 60000) / 1000).toFixed(0).padStart(2, '0')}
+                            </span>
+                            <EnhancedButton
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(track.external_urls.spotify, '_blank')}
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </EnhancedButton>
+                            <EnhancedButton variant="ghost" size="icon">
+                              <Heart className="w-4 h-4" />
+                            </EnhancedButton>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Recommended Tracks */}
+          {selectedMood && currentTracks.length > 0 && !isSpotifyConnected && (
+            <div className="space-y-4 animate-fade-in">
+              <h3 className="text-lg font-semibold flex items-center">                
+                Default Recommendations for {selectedMood} Mood
                 <Badge variant="secondary" className="ml-2">
                   {currentTracks.length} tracks
                 </Badge>

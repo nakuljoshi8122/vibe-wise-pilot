@@ -6,7 +6,11 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Clock, Moon, BarChart3, Pause, Play, Settings } from "lucide-react";
+import { Clock, Moon, BarChart3, Pause, Play, Settings, Timer } from "lucide-react";
+import { ScreenTimePermissions } from "./ScreenTimePermissions";
+import { MindfulBreakTimer } from "./MindfulBreakTimer";
+import { screenTimeService, ScreenTimeData, AccessibilityPermissions } from "@/lib/screenTime";
+import { mindfulBreaksService, BreakTimer } from "@/lib/mindfulBreaks";
 
 interface ZenModeProps {
   onBack: () => void;
@@ -20,14 +24,36 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
   const [blueLight, setBlueLight] = useState(false);
   const [breakReminders, setBreakReminders] = useState(true);
   const [focusDuration, setFocusDuration] = useState([25]);
-
-  // Mock usage data
-  const [usageData] = useState({
-    todayScreenTime: 4.2,
-    averagePickups: 89,
-    mostUsedApp: "Instagram",
-    focusScore: 72
+  const [permissions, setPermissions] = useState<AccessibilityPermissions>({
+    screenTime: false,
+    notifications: false,
+    location: false
   });
+  const [screenTimeData, setScreenTimeData] = useState<ScreenTimeData | null>(null);
+  const [activeBreakTimer, setActiveBreakTimer] = useState<BreakTimer | null>(null);
+  const [showBreakTimer, setShowBreakTimer] = useState(false);
+
+  useEffect(() => {
+    // Initialize screen time tracking
+    screenTimeService.startTracking();
+    
+    // Setup auto reminders for breaks
+    mindfulBreaksService.setupAutoReminders(60); // Every hour
+    
+    // Load screen time data if permissions are granted
+    const loadScreenTimeData = async () => {
+      if (permissions.screenTime) {
+        try {
+          const data = await screenTimeService.getScreenTimeData();
+          setScreenTimeData(data);
+        } catch (error) {
+          console.error('Failed to load screen time data:', error);
+        }
+      }
+    };
+    
+    loadScreenTimeData();
+  }, [permissions.screenTime]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -63,6 +89,21 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
     setTimeRemaining(focusTimer);
   };
 
+  const handlePermissionsChange = (newPermissions: AccessibilityPermissions) => {
+    setPermissions(newPermissions);
+  };
+
+  const startMindfulBreak = (templateName: string) => {
+    const breakTimer = mindfulBreaksService.createBreakTimer(templateName);
+    setActiveBreakTimer(breakTimer);
+    setShowBreakTimer(true);
+  };
+
+  const handleBreakComplete = () => {
+    setShowBreakTimer(false);
+    setActiveBreakTimer(null);
+  };
+
   const activateSleepMode = () => {
     setSleepMode(!sleepMode);
     setBlueLight(!sleepMode);
@@ -74,9 +115,17 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
     }
   };
 
-  const takeMindfulBreak = () => {
-    // Simple breathing exercise
-    alert("Take 3 deep breaths:\n1. Inhale for 4 seconds\n2. Hold for 4 seconds\n3. Exhale for 6 seconds\n\nRepeat 3 times.");
+  // Calculate focus score based on screen time data
+  const calculateFocusScore = () => {
+    if (!screenTimeData) return 72; // Default score
+    
+    const maxHealthyScreenTime = 6 * 60; // 6 hours in minutes
+    const screenTimeScore = Math.max(0, 100 - (screenTimeData.totalScreenTime / maxHealthyScreenTime) * 100);
+    
+    const maxHealthyPickups = 80;
+    const pickupsScore = Math.max(0, 100 - (screenTimeData.pickups / maxHealthyPickups) * 100);
+    
+    return Math.round((screenTimeScore + pickupsScore) / 2);
   };
 
   return (
@@ -97,11 +146,12 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="focus" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="focus">Focus Timer</TabsTrigger>
               <TabsTrigger value="sleep">Sleep Mode</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
               <TabsTrigger value="breaks">Mindful Breaks</TabsTrigger>
+              <TabsTrigger value="permissions">Settings</TabsTrigger>
             </TabsList>
 
             <TabsContent value="focus" className="space-y-6">
@@ -210,6 +260,18 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-6">
+              {!permissions.screenTime ? (
+                <Card className="p-6 text-center">
+                  <Settings className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">Enable Screen Time Tracking</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Grant permissions to see your detailed usage analytics
+                  </p>
+                  <EnhancedButton variant="outline" onClick={() => setActiveTab("permissions")}>
+                    Go to Settings
+                  </EnhancedButton>
+                </Card>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -217,10 +279,10 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
                     <BarChart3 className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="text-3xl font-bold text-primary mb-2">
-                    {usageData.todayScreenTime}h
+                    {screenTimeData ? `${(screenTimeData.totalScreenTime / 60).toFixed(1)}h` : '0h'}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    15% less than yesterday
+                    {screenTimeData ? 'Updated today' : 'No data available'}
                   </p>
                 </Card>
                 
@@ -230,10 +292,10 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
                     <Clock className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="text-3xl font-bold text-wellness-energy mb-2">
-                    {usageData.averagePickups}
+                    {screenTimeData?.pickups || 0}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Average today
+                    Times today
                   </p>
                 </Card>
                 
@@ -243,27 +305,35 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
                     <Settings className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="text-xl font-bold text-accent mb-2">
-                    {usageData.mostUsedApp}
+                    {screenTimeData?.mostUsedApp || 'Unknown'}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    2.1 hours today
+                    Most used today
                   </p>
                 </Card>
                 
                 <Card className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Focus Score</h3>
-                    <Badge variant="secondary">{usageData.focusScore}/100</Badge>
+                    <Badge variant="secondary">{calculateFocusScore()}/100</Badge>
                   </div>
-                  <Progress value={usageData.focusScore} className="mb-2" />
+                  <Progress value={calculateFocusScore()} className="mb-2" />
                   <p className="text-sm text-muted-foreground">
                     Based on app usage patterns
                   </p>
                 </Card>
               </div>
+              )}
             </TabsContent>
 
             <TabsContent value="breaks" className="space-y-6">
+              {showBreakTimer && activeBreakTimer ? (
+                <MindfulBreakTimer
+                  breakTimer={activeBreakTimer}
+                  onComplete={handleBreakComplete}
+                  onClose={() => setShowBreakTimer(false)}
+                />
+              ) : (
               <Card className="p-6">
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
@@ -283,8 +353,9 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
                     <EnhancedButton 
                       variant="wellness" 
                       className="h-20 flex-col"
-                      onClick={takeMindfulBreak}
+                      onClick={() => startMindfulBreak('Deep Breathing')}
                     >
+                      <Timer className="w-6 h-6 mb-2" />
                       <span className="text-lg mb-1">Breathing Exercise</span>
                       <span className="text-sm opacity-75">3 minutes</span>
                     </EnhancedButton>
@@ -292,8 +363,9 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
                     <EnhancedButton 
                       variant="calm" 
                       className="h-20 flex-col"
-                      onClick={() => alert("Stand up and stretch for 2 minutes. Move your shoulders, neck, and legs.")}
+                      onClick={() => startMindfulBreak('Gentle Stretch')}
                     >
+                      <Timer className="w-6 h-6 mb-2" />
                       <span className="text-lg mb-1">Stretch Break</span>
                       <span className="text-sm opacity-75">2 minutes</span>
                     </EnhancedButton>
@@ -301,8 +373,9 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
                     <EnhancedButton 
                       variant="outline" 
                       className="h-20 flex-col"
-                      onClick={() => alert("Look at something 20 feet away for 20 seconds to rest your eyes.")}
+                      onClick={() => startMindfulBreak('Eye Rest Exercise')}
                     >
+                      <Timer className="w-6 h-6 mb-2" />
                       <span className="text-lg mb-1">Eye Rest</span>
                       <span className="text-sm opacity-75">20 seconds</span>
                     </EnhancedButton>
@@ -310,14 +383,37 @@ export const ZenMode = ({ onBack }: ZenModeProps) => {
                     <EnhancedButton 
                       variant="secondary" 
                       className="h-20 flex-col"
-                      onClick={() => alert("Take 5 deep breaths and think of 3 things you're grateful for.")}
+                      onClick={() => startMindfulBreak('Gratitude Moment')}
                     >
+                      <Timer className="w-6 h-6 mb-2" />
                       <span className="text-lg mb-1">Gratitude Moment</span>
                       <span className="text-sm opacity-75">1 minute</span>
                     </EnhancedButton>
+                    
+                    <EnhancedButton 
+                      variant="mood" 
+                      className="h-20 flex-col md:col-span-2"
+                      onClick={() => startMindfulBreak('Mini Meditation')}
+                    >
+                      <Timer className="w-6 h-6 mb-2" />
+                      <span className="text-lg mb-1">Mini Meditation</span>
+                      <span className="text-sm opacity-75">5 minutes</span>
+                    </EnhancedButton>
+                  </div>
+                  
+                  <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                    <h4 className="font-medium mb-2">Today's Break Sessions</h4>
+                    <div className="text-sm text-muted-foreground">
+                      {mindfulBreaksService.getTodaysSessions().length} breaks completed today
+                    </div>
                   </div>
                 </div>
               </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="permissions" className="space-y-6">
+              <ScreenTimePermissions onPermissionsChange={handlePermissionsChange} />
             </TabsContent>
           </Tabs>
         </CardContent>

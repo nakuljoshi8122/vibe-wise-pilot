@@ -34,8 +34,8 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 36911
-externalPort = 3000
+localPort = 5001
+externalPort = 3001
 
 [agent]
 integrations = ["spotify:1.0.0"]

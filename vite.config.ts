@@ -8,7 +8,10 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    allowedHosts: "all", // ✅ allow Replit dynamic hosts
+    allowedHosts: [
+      "localhost",
+      /^.*\.replit\.dev$/ // ✅ allow any Replit dynamic subdomain
+    ],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

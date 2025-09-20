@@ -19,7 +19,7 @@ export const MoodCard = ({ emoji, mood, description, color, onClick, isSelected 
       onClick={onClick}
     >
       <CardContent className="p-6 text-center">
-        <div className="text-4xl mb-3 animate-float">{emoji}</div>
+        <div className="text-3xl mb-3 animate-float">{emoji}</div>
         <h3 className="font-semibold text-lg mb-2 text-foreground">{mood}</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
       </CardContent>

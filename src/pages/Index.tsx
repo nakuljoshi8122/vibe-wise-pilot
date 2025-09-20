@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { VibeCheck } from "@/components/VibeCheck";
+import { EnhancedVibeCheck } from "@/components/EnhancedVibeCheck";
 import { ThoughtSorter } from "@/components/ThoughtSorter";
 import { MoodTunes } from "@/components/MoodTunes";
+import { ZenMode } from "@/components/ZenMode";
+import { SquadGoals } from "@/components/SquadGoals";
 import { AIPersona } from "@/components/AIPersona";
 import { FeatureCard } from "@/components/FeatureCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -20,7 +22,7 @@ import {
   Star
 } from "lucide-react";
 
-type AppView = "home" | "vibe-check" | "thought-sorter" | "mood-tunes" | "persona" | "zen";
+type AppView = "home" | "vibe-check" | "thought-sorter" | "mood-tunes" | "persona" | "zen" | "squad-goals";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<AppView>("home");
@@ -41,7 +43,7 @@ const Index = () => {
         "Mood assessment with emoji selection",
         "Energy level tracking",
         "Focus area identification",
-        "Personalized AI companion"
+        "Personalized diet & sleep plans"
       ]
     },
     {
@@ -72,12 +74,12 @@ const Index = () => {
       icon: <Users className="w-8 h-8 text-accent" />,
       title: "Squad Goals",
       description: "AI-powered group challenges that build community and accountability",
-      status: "coming-soon" as const,
+      status: "available" as const,
       features: [
         "Group wellness challenges",
-        "Peer support networks",
-        "Progress tracking",
-        "Achievement rewards"
+        "Real-time group chat",
+        "Team progress tracking",
+        "Peer accountability system"
       ]
     },
     {
@@ -86,10 +88,10 @@ const Index = () => {
       description: "Mindful tech use tools to help you build healthier digital habits",
       status: "available" as const,
       features: [
-        "App usage tracking",
-        "Mindful breaks reminders",
-        "Digital detox programs",
-        "Screen time optimization"
+        "Functional focus timer",
+        "Sleep mode with blue light filter",
+        "Usage analytics dashboard",
+        "Guided mindful breaks"
       ]
     }
   ];
@@ -102,6 +104,8 @@ const Index = () => {
         return () => setCurrentView("thought-sorter");
       case "MoodTunes":
         return () => setCurrentView("mood-tunes");
+      case "Squad Goals":
+        return () => setCurrentView("squad-goals");
       case "Zen Mode":
         return () => setCurrentView("zen");
       default:
@@ -115,11 +119,11 @@ const Index = () => {
         <div className="max-w-6xl mx-auto">
           <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
-              ← Back to Home
+              Back to Home
             </EnhancedButton>
             <ThemeToggle />
           </div>
-          <VibeCheck onComplete={handleVibeCheckComplete} />
+          <EnhancedVibeCheck onComplete={handleVibeCheckComplete} />
         </div>
       </div>
     );
@@ -131,7 +135,7 @@ const Index = () => {
         <div className="max-w-6xl mx-auto">
           <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
-              ← Back to Home
+              Back to Home
             </EnhancedButton>
             <ThemeToggle />
           </div>
@@ -147,11 +151,27 @@ const Index = () => {
         <div className="max-w-6xl mx-auto">
           <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
-              ← Back to Home
+              Back to Home
             </EnhancedButton>
             <ThemeToggle />
           </div>
           <MoodTunes />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === "squad-goals") {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6 flex justify-between items-center">
+            <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
+              Back to Home
+            </EnhancedButton>
+            <ThemeToggle />
+          </div>
+          <SquadGoals onBack={() => setCurrentView("home")} />
         </div>
       </div>
     );
@@ -163,80 +183,11 @@ const Index = () => {
         <div className="max-w-6xl mx-auto">
           <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
-              ← Back to Home
+              Back to Home
             </EnhancedButton>
             <ThemeToggle />
           </div>
-          <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-            <Card className="bg-gradient-to-br from-card to-wellness-calm/20">
-              <CardHeader className="text-center">
-                <div className="flex items-center justify-center mb-4">
-                  <span className="text-4xl mr-3">🧘‍♀️</span>
-                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-wellness-calm bg-clip-text text-transparent">
-                    Zen Mode
-                  </CardTitle>
-                </div>
-                <p className="text-muted-foreground max-w-2xl mx-auto">
-                  Create healthy digital boundaries and practice mindful technology use
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="p-6">
-                    <h3 className="font-semibold text-lg mb-3 flex items-center">
-                      <span className="text-2xl mr-2">📱</span>
-                      Focus Timer
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Pomodoro-style timer with app blocking during focus sessions
-                    </p>
-                    <EnhancedButton variant="wellness" className="w-full">
-                      Start Focus Session
-                    </EnhancedButton>
-                  </Card>
-                  
-                  <Card className="p-6">
-                    <h3 className="font-semibold text-lg mb-3 flex items-center">
-                      <span className="text-2xl mr-2">🌙</span>
-                      Sleep Mode
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Wind-down routine with blue light filtering and gentle reminders
-                    </p>
-                    <EnhancedButton variant="calm" className="w-full">
-                      Activate Sleep Mode
-                    </EnhancedButton>
-                  </Card>
-                  
-                  <Card className="p-6">
-                    <h3 className="font-semibold text-lg mb-3 flex items-center">
-                      <span className="text-2xl mr-2">📊</span>
-                      Usage Insights
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Track your digital habits and get personalized recommendations
-                    </p>
-                    <EnhancedButton variant="outline" className="w-full">
-                      View Analytics
-                    </EnhancedButton>
-                  </Card>
-                  
-                  <Card className="p-6">
-                    <h3 className="font-semibold text-lg mb-3 flex items-center">
-                      <span className="text-2xl mr-2">🎯</span>
-                      Mindful Breaks
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Guided breathing exercises and micro-meditation sessions
-                    </p>
-                    <EnhancedButton variant="secondary" className="w-full">
-                      Take a Break
-                    </EnhancedButton>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <ZenMode onBack={() => setCurrentView("home")} />
         </div>
       </div>
     );
@@ -248,7 +199,7 @@ const Index = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="mb-6 flex justify-between items-center">
             <EnhancedButton variant="ghost" onClick={() => setCurrentView("home")}>
-              ← Back to Home
+              Back to Home
             </EnhancedButton>
             <ThemeToggle />
           </div>
@@ -313,9 +264,6 @@ const Index = () => {
                 <Sparkles className="w-5 h-5 mr-2" />
                 Start Your Vibe Check
                 <ArrowRight className="w-5 h-5 ml-2" />
-              </EnhancedButton>
-              <EnhancedButton variant="outline" size="lg">
-                Watch Demo
               </EnhancedButton>
             </div>
 

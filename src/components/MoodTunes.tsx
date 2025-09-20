@@ -33,10 +33,10 @@ const moodMusic = {
 };
 
 const moods = [
-  { emoji: "😊", mood: "Great", description: "Feeling positive and energetic", color: "wellness-energy" },
-  { emoji: "😌", mood: "Calm", description: "Peaceful and centered", color: "wellness-calm" },
-  { emoji: "😕", mood: "Stressed", description: "Need to relax and unwind", color: "wellness-stress" },
-  { emoji: "😴", mood: "Tired", description: "Low energy, need motivation", color: "muted" },
+  { emoji: "🎵", mood: "Great", description: "Feeling positive and energetic", color: "wellness-energy" },
+  { emoji: "🎶", mood: "Calm", description: "Peaceful and centered", color: "wellness-calm" },
+  { emoji: "🎼", mood: "Stressed", description: "Need to relax and unwind", color: "wellness-stress" },
+  { emoji: "🎧", mood: "Tired", description: "Low energy, need motivation", color: "muted" },
 ];
 
 export const MoodTunes = () => {
